@@ -9,7 +9,10 @@ import EditTeamModal from './components/EditTeamModal'
 type DrawState = 'idle' | 'spinning' | 'winner'
 
 function App() {
-  const [members, setMembers] = useState<string[]>(teamData.members)
+  const [members, setMembers] = useState<string[]>(() => {
+    const saved = localStorage.getItem('teamMembers')
+    return saved ? JSON.parse(saved) : teamData.members
+  })
   const [displayName, setDisplayName] = useState('Press Draw!')
   const [drawState, setDrawState] = useState<DrawState>('idle')
   const [winner, setWinner] = useState<string | null>(null)
@@ -48,6 +51,7 @@ function App() {
   }, [drawState, members])
 
   const handleSaveMembers = (updated: string[]) => {
+    localStorage.setItem('teamMembers', JSON.stringify(updated))
     setMembers(updated)
     setShowEditModal(false)
     setWinner(null)

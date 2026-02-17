@@ -157,6 +157,177 @@ body {
   font-weight: 600;
 }
 
+/* Edit Team Button */
+.edit-team-btn {
+  margin-top: 0.75rem;
+  padding: 8px 24px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid rgba(26, 45, 90, 0.25);
+  border-radius: 50px;
+  cursor: pointer;
+  background: transparent;
+  color: #486581;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+
+.edit-team-btn:hover:not(:disabled) {
+  background: rgba(26, 45, 90, 0.08);
+  color: #1a2d5a;
+  border-color: rgba(26, 45, 90, 0.4);
+}
+
+.edit-team-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 27, 61, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 90%;
+  max-width: 400px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(26, 45, 90, 0.3);
+}
+
+.modal-title {
+  font-size: 1.3rem;
+  color: #1a2d5a;
+  margin-bottom: 1.25rem;
+  text-align: center;
+}
+
+.modal-members {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 40vh;
+  margin-bottom: 1rem;
+}
+
+.modal-member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: rgba(26, 45, 90, 0.04);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: #334e68;
+}
+
+.remove-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #9fb3c8;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.remove-btn:hover {
+  color: #e53e3e;
+}
+
+.modal-add-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1.25rem;
+}
+
+.modal-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid rgba(26, 45, 90, 0.2);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: #334e68;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.modal-input:focus {
+  border-color: #2a4fa0;
+}
+
+.add-btn {
+  padding: 10px 20px;
+  background: linear-gradient(90deg, #2a4fa0, #1a2d5a);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.add-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.cancel-btn,
+.save-btn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn {
+  background: transparent;
+  border: 1px solid rgba(26, 45, 90, 0.2);
+  color: #627d98;
+}
+
+.cancel-btn:hover {
+  background: rgba(26, 45, 90, 0.06);
+}
+
+.save-btn {
+  background: linear-gradient(90deg, #2a4fa0, #1a2d5a);
+  color: #fff;
+  border: none;
+}
+
+.save-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.save-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 16px rgba(42, 79, 160, 0.4);
+}
+
 /* Confetti */
 .confetti-piece {
   position: fixed;

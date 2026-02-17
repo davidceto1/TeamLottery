@@ -8,8 +8,25 @@ import EditTeamModal from './components/EditTeamModal'
 
 type DrawState = 'idle' | 'spinning' | 'winner'
 
+function encodeTeam(members: string[]): string {
+  return btoa(JSON.stringify(members))
+}
+
+function decodeTeam(hash: string): string[] | null {
+  try {
+    const param = hash.replace(/^#team=/, '')
+    if (!param) return null
+    return JSON.parse(atob(param))
+  } catch {
+    return null
+  }
+}
+
 function App() {
   const [members, setMembers] = useState<string[]>(() => {
+    const fromHash = decodeTeam(window.location.hash)
+    if (fromHash) return fromHash
+
     const saved = localStorage.getItem('teamMembers')
     return saved ? JSON.parse(saved) : teamData.members
   })
@@ -52,6 +69,7 @@ function App() {
 
   const handleSaveMembers = (updated: string[]) => {
     localStorage.setItem('teamMembers', JSON.stringify(updated))
+    window.location.hash = 'team=' + encodeTeam(updated)
     setMembers(updated)
     setShowEditModal(false)
     setWinner(null)
@@ -73,6 +91,17 @@ function App() {
         disabled={drawState === 'spinning'}
       >
         Edit Team
+      </button>
+
+      <button
+        className="edit-team-btn"
+        onClick={() => {
+          const url = window.location.origin + window.location.pathname + '#team=' + encodeTeam(members)
+          navigator.clipboard.writeText(url)
+        }}
+        disabled={drawState === 'spinning'}
+      >
+        Copy Link
       </button>
 
       <TeamList members={members} winner={winner} />

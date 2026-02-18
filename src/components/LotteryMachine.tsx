@@ -48,8 +48,8 @@ interface AirParticle {
 
 const wallOpts: Matter.IChamferableBodyDefinition = {
   isStatic: true,
-  friction: 0.3,
-  restitution: 0.5,
+  friction: 0.1,
+  restitution: 0.8,
 }
 
 function createCapsuleWalls() {
@@ -136,10 +136,10 @@ function createBall(name: string, index: number, total: number): Matter.Body {
   const y = BOTTOM - 40 - row * (BALL_RADIUS * 2 + 6) + (Math.random() - 0.5) * 8
 
   return Bodies.circle(x, y, BALL_RADIUS, {
-    restitution: 0.7,
-    friction: 0.02,
-    frictionAir: 0.03,
-    density: 0.0005,
+    restitution: 0.9,
+    friction: 0.05,
+    frictionAir: 0.015,
+    density: 0.002,
     label: name,
   })
 }
@@ -289,18 +289,25 @@ function drawCapsule(ctx: CanvasRenderingContext2D, gateOpen: boolean) {
     ctx.stroke()
   }
 
-  // Air vent slits on the floor
-  const slitCount = 8
-  const slitSpacing = (RIGHT - LEFT - 40) / (slitCount + 1)
-  ctx.strokeStyle = 'rgba(26, 45, 90, 0.2)'
+  // Air vent slits on the bottom-left corner
+  const slitCount = 4
+  ctx.strokeStyle = 'rgba(26, 45, 90, 0.25)'
   ctx.lineWidth = 2
-  for (let i = 1; i <= slitCount; i++) {
-    const sx = LEFT + 20 + slitSpacing * i
+  for (let i = 0; i < slitCount; i++) {
+    const sx = LEFT + 18 + i * 20
     ctx.beginPath()
     ctx.moveTo(sx - 6, BOTTOM)
     ctx.lineTo(sx + 6, BOTTOM)
     ctx.stroke()
   }
+  // Small vent arrow indicator
+  ctx.fillStyle = 'rgba(26, 45, 90, 0.15)'
+  ctx.beginPath()
+  ctx.moveTo(LEFT + 40, BOTTOM - 2)
+  ctx.lineTo(LEFT + 35, BOTTOM - 10)
+  ctx.lineTo(LEFT + 45, BOTTOM - 10)
+  ctx.closePath()
+  ctx.fill()
 
   ctx.restore()
 }
@@ -337,7 +344,7 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
   // Initialize engine
   useEffect(() => {
     const engine = Engine.create({
-      gravity: { x: 0, y: 1.0, scale: 0.001 },
+      gravity: { x: 0, y: 1.8, scale: 0.001 },
     })
     engineRef.current = engine
 
@@ -359,19 +366,39 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
     World.add(engine.world, [sensor])
     sensorRef.current = sensor
 
-    // Air force — applied every physics tick
+    // Air force — jet from bottom-left corner pushing up and to the right
+    // Creates a circular mixing pattern with chaotic variation
     Events.on(engine, 'beforeUpdate', () => {
       if (!airBlowingRef.current) return
       const balls = ballsRef.current
       for (const ball of balls) {
-        // Upward air force
+        const { x, y } = ball.position
+
+        // Distance from bottom-left corner (air source)
+        const dx = x - LEFT
+        const dy = BOTTOM - y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        const maxDist = Math.sqrt((RIGHT - LEFT) ** 2 + (BOTTOM - TOP) ** 2)
+
+        // Air jet is strongest near the bottom-left, fades with distance
+        const strength = Math.max(0, 1 - dist / (maxDist * 0.8))
+
+        // Base force: up and to the right (from bottom-left corner)
+        const baseForceX = 0.004 * strength
+        const baseForceY = -0.007 * strength
+
+        // Chaotic per-ball variation each tick
+        const chaosX = (Math.random() - 0.45) * 0.003
+        const chaosY = (Math.random() - 0.5) * 0.004
+
         Body.applyForce(ball, ball.position, {
-          x: (Math.random() - 0.5) * 0.0008,
-          y: -0.0025 - Math.random() * 0.001,
+          x: baseForceX + chaosX,
+          y: baseForceY + chaosY,
         })
-        // Small random angular nudge
-        if (Math.random() < 0.1) {
-          Body.setAngularVelocity(ball, ball.angularVelocity + (Math.random() - 0.5) * 0.15)
+
+        // Random spin for visual turbulence
+        if (Math.random() < 0.15) {
+          Body.setAngularVelocity(ball, ball.angularVelocity + (Math.random() - 0.5) * 0.3)
         }
       }
     })
@@ -470,28 +497,28 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
       // Translate so chute top is visible
       ctx.translate(0, yOffset)
 
-      // Update air particles
+      // Update air particles — originate from bottom-left corner
       if (airBlowingRef.current) {
-        // Spawn new particles
-        if (Math.random() < 0.4) {
+        // Spawn new particles from bottom-left area
+        if (Math.random() < 0.5) {
           airParticlesRef.current.push({
-            x: LEFT + 20 + Math.random() * (RIGHT - LEFT - 40),
-            y: BOTTOM - 5,
-            vy: -(1.5 + Math.random() * 2),
-            opacity: 0.15 + Math.random() * 0.2,
-            size: 1.5 + Math.random() * 2,
+            x: LEFT + 10 + Math.random() * 80,
+            y: BOTTOM - 5 - Math.random() * 30,
+            vy: -(2 + Math.random() * 3),
+            opacity: 0.2 + Math.random() * 0.25,
+            size: 1.5 + Math.random() * 2.5,
           })
         }
       }
 
-      // Update existing particles
+      // Update existing particles — drift up and to the right
       const particles = airParticlesRef.current
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i]
         p.y += p.vy
-        p.x += (Math.random() - 0.5) * 1.2
-        p.opacity -= 0.003
-        if (p.opacity <= 0 || p.y < TOP - 10) {
+        p.x += 0.8 + Math.random() * 1.2
+        p.opacity -= 0.004
+        if (p.opacity <= 0 || p.y < TOP - 10 || p.x > RIGHT + 10) {
           particles.splice(i, 1)
         }
       }

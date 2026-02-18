@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import teamData from '../team.json'
-import LotteryBall from './components/LotteryBall'
+import LotteryMachine from './components/LotteryMachine'
 import DrawButton from './components/DrawButton'
 import TeamList from './components/TeamList'
 import Confetti from './components/Confetti'
@@ -30,42 +30,29 @@ function App() {
     const saved = localStorage.getItem('teamMembers')
     return saved ? JSON.parse(saved) : teamData.members
   })
-  const [displayName, setDisplayName] = useState('Press Draw!')
   const [drawState, setDrawState] = useState<DrawState>('idle')
   const [winner, setWinner] = useState<string | null>(null)
   const [showConfetti, setShowConfetti] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [drawRequested, setDrawRequested] = useState(false)
 
   const draw = useCallback(() => {
     if (drawState === 'spinning' || members.length === 0) return
+    setDrawRequested(true)
+  }, [drawState, members])
 
+  const handleDrawStart = useCallback(() => {
     setDrawState('spinning')
     setWinner(null)
     setShowConfetti(false)
+  }, [])
 
-    let flicks = 0
-    const totalFlicks = 20 + Math.floor(Math.random() * 15)
-    let delay = 50
-
-    function flick() {
-      const rand = members[Math.floor(Math.random() * members.length)]
-      setDisplayName(rand)
-      flicks++
-
-      if (flicks < totalFlicks) {
-        delay += flicks * 2.5
-        setTimeout(flick, delay)
-      } else {
-        const picked = members[Math.floor(Math.random() * members.length)]
-        setDisplayName(picked)
-        setWinner(picked)
-        setDrawState('winner')
-        setShowConfetti(true)
-      }
-    }
-
-    flick()
-  }, [drawState, members])
+  const handleDrawComplete = useCallback((pickedWinner: string) => {
+    setWinner(pickedWinner)
+    setDrawState('winner')
+    setShowConfetti(true)
+    setDrawRequested(false)
+  }, [])
 
   const handleSaveMembers = (updated: string[]) => {
     localStorage.setItem('teamMembers', JSON.stringify(updated))
@@ -74,7 +61,7 @@ function App() {
     setShowEditModal(false)
     setWinner(null)
     setDrawState('idle')
-    setDisplayName('Press Draw!')
+    setDrawRequested(false)
   }
 
   return (
@@ -82,7 +69,13 @@ function App() {
       <h1 className="title">Standup Spinner</h1>
       <p className="subtitle">Who's running the show today?</p>
 
-      <LotteryBall name={displayName} state={drawState} />
+      <LotteryMachine
+        members={members}
+        drawRequested={drawRequested}
+        onDrawStart={handleDrawStart}
+        onDrawComplete={handleDrawComplete}
+      />
+
       <DrawButton onClick={draw} disabled={drawState === 'spinning'} />
 
       <button

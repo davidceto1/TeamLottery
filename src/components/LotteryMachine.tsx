@@ -140,7 +140,7 @@ function createBall(name: string, index: number, total: number): Matter.Body {
     restitution: 0.9,
     friction: 0.05,
     frictionAir: 0.015,
-    density: 0.002,
+    density: 0.001,
     label: name,
   })
 }

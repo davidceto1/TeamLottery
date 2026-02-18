@@ -6,7 +6,7 @@ import TeamList from './components/TeamList'
 import Confetti from './components/Confetti'
 import EditTeamModal from './components/EditTeamModal'
 
-type DrawState = 'idle' | 'spinning' | 'winner'
+type DrawState = 'idle' | 'mixing' | 'opening' | 'winner'
 
 function encodeTeam(members: string[]): string {
   return btoa(JSON.stringify(members))
@@ -37,12 +37,12 @@ function App() {
   const [drawRequested, setDrawRequested] = useState(false)
 
   const draw = useCallback(() => {
-    if (drawState === 'spinning' || members.length === 0) return
+    if (drawState !== 'idle' || members.length === 0) return
     setDrawRequested(true)
   }, [drawState, members])
 
   const handleDrawStart = useCallback(() => {
-    setDrawState('spinning')
+    setDrawState('mixing')
     setWinner(null)
     setShowConfetti(false)
   }, [])
@@ -52,6 +52,11 @@ function App() {
     setDrawState('winner')
     setShowConfetti(true)
     setDrawRequested(false)
+
+    // Auto-reset to idle after a delay so user can draw again
+    setTimeout(() => {
+      setDrawState('idle')
+    }, 3000)
   }, [])
 
   const handleSaveMembers = (updated: string[]) => {
@@ -63,6 +68,8 @@ function App() {
     setDrawState('idle')
     setDrawRequested(false)
   }
+
+  const isDrawing = drawState === 'mixing' || drawState === 'opening'
 
   return (
     <div className="app">
@@ -76,12 +83,16 @@ function App() {
         onDrawComplete={handleDrawComplete}
       />
 
-      <DrawButton onClick={draw} disabled={drawState === 'spinning'} />
+      <DrawButton
+        onClick={draw}
+        disabled={isDrawing}
+        label={drawState === 'winner' ? 'Draw Again' : 'Draw'}
+      />
 
       <button
         className="edit-team-btn"
         onClick={() => setShowEditModal(true)}
-        disabled={drawState === 'spinning'}
+        disabled={isDrawing}
       >
         Edit Team
       </button>
@@ -92,7 +103,7 @@ function App() {
           const url = window.location.origin + window.location.pathname + '#team=' + encodeTeam(members)
           navigator.clipboard.writeText(url)
         }}
-        disabled={drawState === 'spinning'}
+        disabled={isDrawing}
       >
         Copy Link
       </button>

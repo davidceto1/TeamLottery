@@ -1,12 +1,13 @@
 interface DrawButtonProps {
   onClick: () => void
   disabled: boolean
+  label?: string
 }
 
-function DrawButton({ onClick, disabled }: DrawButtonProps) {
+function DrawButton({ onClick, disabled, label = 'Draw' }: DrawButtonProps) {
   return (
     <button className="draw-btn" onClick={onClick} disabled={disabled}>
-      Draw
+      {label}
     </button>
   )
 }

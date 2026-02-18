@@ -41,6 +41,7 @@ const BALL_COLORS = [
 interface AirParticle {
   x: number
   y: number
+  vx: number
   vy: number
   opacity: number
   size: number
@@ -289,10 +290,11 @@ function drawCapsule(ctx: CanvasRenderingContext2D, gateOpen: boolean) {
     ctx.stroke()
   }
 
-  // Air vent slits on the bottom-left corner
+  // Air vent slits on both bottom corners
   const slitCount = 4
   ctx.strokeStyle = 'rgba(26, 45, 90, 0.25)'
   ctx.lineWidth = 2
+  // Left corner vents
   for (let i = 0; i < slitCount; i++) {
     const sx = LEFT + 18 + i * 20
     ctx.beginPath()
@@ -300,12 +302,26 @@ function drawCapsule(ctx: CanvasRenderingContext2D, gateOpen: boolean) {
     ctx.lineTo(sx + 6, BOTTOM)
     ctx.stroke()
   }
-  // Small vent arrow indicator
+  // Right corner vents
+  for (let i = 0; i < slitCount; i++) {
+    const sx = RIGHT - 18 - i * 20
+    ctx.beginPath()
+    ctx.moveTo(sx - 6, BOTTOM)
+    ctx.lineTo(sx + 6, BOTTOM)
+    ctx.stroke()
+  }
+  // Vent arrow indicators
   ctx.fillStyle = 'rgba(26, 45, 90, 0.15)'
   ctx.beginPath()
   ctx.moveTo(LEFT + 40, BOTTOM - 2)
   ctx.lineTo(LEFT + 35, BOTTOM - 10)
   ctx.lineTo(LEFT + 45, BOTTOM - 10)
+  ctx.closePath()
+  ctx.fill()
+  ctx.beginPath()
+  ctx.moveTo(RIGHT - 40, BOTTOM - 2)
+  ctx.lineTo(RIGHT - 35, BOTTOM - 10)
+  ctx.lineTo(RIGHT - 45, BOTTOM - 10)
   ctx.closePath()
   ctx.fill()
 
@@ -366,34 +382,41 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
     World.add(engine.world, [sensor])
     sensorRef.current = sensor
 
-    // Air force — jet from bottom-left corner pushing up and to the right
-    // Creates a circular mixing pattern with chaotic variation
+    // Air force — jets from both bottom corners pushing up and inward
+    // Creates a chaotic mixing pattern as the two streams collide
     Events.on(engine, 'beforeUpdate', () => {
       if (!airBlowingRef.current) return
       const balls = ballsRef.current
+      const capsuleWidth = RIGHT - LEFT
+      const capsuleHeight = BOTTOM - TOP
+      const maxDist = Math.sqrt(capsuleWidth ** 2 + capsuleHeight ** 2)
+
       for (const ball of balls) {
         const { x, y } = ball.position
 
-        // Distance from bottom-left corner (air source)
-        const dx = x - LEFT
-        const dy = BOTTOM - y
-        const dist = Math.sqrt(dx * dx + dy * dy)
-        const maxDist = Math.sqrt((RIGHT - LEFT) ** 2 + (BOTTOM - TOP) ** 2)
+        // Distance from bottom-left corner
+        const dxL = x - LEFT
+        const dyL = BOTTOM - y
+        const distL = Math.sqrt(dxL * dxL + dyL * dyL)
+        const strengthL = Math.max(0, 1 - distL / (maxDist * 0.8))
 
-        // Air jet is strongest near the bottom-left, fades with distance
-        const strength = Math.max(0, 1 - dist / (maxDist * 0.8))
+        // Distance from bottom-right corner
+        const dxR = RIGHT - x
+        const dyR = BOTTOM - y
+        const distR = Math.sqrt(dxR * dxR + dyR * dyR)
+        const strengthR = Math.max(0, 1 - distR / (maxDist * 0.8))
 
-        // Base force: up and to the right (from bottom-left corner)
-        const baseForceX = 0.004 * strength
-        const baseForceY = -0.007 * strength
+        // Left jet pushes up-right, right jet pushes up-left
+        const forceX = 0.004 * strengthL - 0.004 * strengthR
+        const forceY = -0.007 * strengthL + -0.007 * strengthR
 
         // Chaotic per-ball variation each tick
-        const chaosX = (Math.random() - 0.45) * 0.003
+        const chaosX = (Math.random() - 0.5) * 0.003
         const chaosY = (Math.random() - 0.5) * 0.004
 
         Body.applyForce(ball, ball.position, {
-          x: baseForceX + chaosX,
-          y: baseForceY + chaosY,
+          x: forceX + chaosX,
+          y: forceY + chaosY,
         })
 
         // Random spin for visual turbulence
@@ -497,28 +520,40 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
       // Translate so chute top is visible
       ctx.translate(0, yOffset)
 
-      // Update air particles — originate from bottom-left corner
+      // Update air particles — originate from both bottom corners
       if (airBlowingRef.current) {
-        // Spawn new particles from bottom-left area
-        if (Math.random() < 0.5) {
+        // Spawn from bottom-left
+        if (Math.random() < 0.4) {
           airParticlesRef.current.push({
             x: LEFT + 10 + Math.random() * 80,
             y: BOTTOM - 5 - Math.random() * 30,
             vy: -(2 + Math.random() * 3),
+            vx: 0.8 + Math.random() * 1.2,
+            opacity: 0.2 + Math.random() * 0.25,
+            size: 1.5 + Math.random() * 2.5,
+          })
+        }
+        // Spawn from bottom-right
+        if (Math.random() < 0.4) {
+          airParticlesRef.current.push({
+            x: RIGHT - 10 - Math.random() * 80,
+            y: BOTTOM - 5 - Math.random() * 30,
+            vy: -(2 + Math.random() * 3),
+            vx: -(0.8 + Math.random() * 1.2),
             opacity: 0.2 + Math.random() * 0.25,
             size: 1.5 + Math.random() * 2.5,
           })
         }
       }
 
-      // Update existing particles — drift up and to the right
+      // Update existing particles — drift up and inward
       const particles = airParticlesRef.current
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i]
         p.y += p.vy
-        p.x += 0.8 + Math.random() * 1.2
+        p.x += p.vx
         p.opacity -= 0.004
-        if (p.opacity <= 0 || p.y < TOP - 10 || p.x > RIGHT + 10) {
+        if (p.opacity <= 0 || p.y < TOP - 10 || p.x > RIGHT + 10 || p.x < LEFT - 10) {
           particles.splice(i, 1)
         }
       }

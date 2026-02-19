@@ -48,6 +48,25 @@ const BALL_COLORS = [
   '#1b3f7a', '#2b5aaa', '#345fa5', '#1c3468', '#2e5590',
 ]
 
+// Winner animation state
+interface WinnerAnim {
+  ballBody: Matter.Body
+  startX: number
+  startY: number
+  startTime: number
+}
+
+function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
+}
+
+// Overshoot then settle — gives the Keno "zoom out" feel
+function easeOutBack(t: number): number {
+  const c1 = 1.70158
+  const c3 = c1 + 1
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2)
+}
+
 // Air particle type for visual effect
 interface AirParticle {
   x: number
@@ -170,15 +189,19 @@ function drawBallOnCanvas(
   ctx: CanvasRenderingContext2D,
   body: Matter.Body,
   winnerName: string | null,
+  opts?: { overrideX?: number; overrideY?: number; scale?: number; lockAngle?: boolean },
 ) {
-  const { x, y } = body.position
+  const drawX = opts?.overrideX ?? body.position.x
+  const drawY = opts?.overrideY ?? body.position.y
+  const scale = opts?.scale ?? 1
   const radius = BALL_RADIUS
   const name = body.label
   const isWinner = name === winnerName
 
   ctx.save()
-  ctx.translate(x, y)
-  ctx.rotate(body.angle)
+  ctx.translate(drawX, drawY)
+  if (!opts?.lockAngle) ctx.rotate(body.angle)
+  if (scale !== 1) ctx.scale(scale, scale)
 
   // Shadow
   ctx.beginPath()
@@ -210,10 +233,10 @@ function drawBallOnCanvas(
   ctx.fillStyle = 'rgba(255,255,255,0.18)'
   ctx.fill()
 
-  // Winner glow
+  // Winner glow (shadow is in untransformed space so compensate for ctx.scale)
   if (isWinner) {
     ctx.shadowColor = '#f5c842'
-    ctx.shadowBlur = 25
+    ctx.shadowBlur = 25 / scale
     ctx.beginPath()
     ctx.arc(0, 0, radius + 3, 0, Math.PI * 2)
     ctx.strokeStyle = 'rgba(245, 200, 66, 0.7)'
@@ -344,6 +367,7 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
   const winnerFoundRef = useRef(false)
   const airParticlesRef = useRef<AirParticle[]>([])
   const drawTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const winnerAnimRef = useRef<WinnerAnim | null>(null)
   const [, forceRender] = useState(0)
 
   const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1
@@ -442,14 +466,25 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
         winnerFoundRef.current = true
         winnerRef.current = ballBody.label
         airBlowingRef.current = false
+
+        // Freeze the ball in place and animate it to the centre
+        Body.setStatic(ballBody, true)
+        Body.setVelocity(ballBody, { x: 0, y: 0 })
+        Body.setAngularVelocity(ballBody, 0)
+
+        winnerAnimRef.current = {
+          ballBody,
+          startX: ballBody.position.x,
+          startY: ballBody.position.y,
+          startTime: performance.now(),
+        }
+
         forceRender((n) => n + 1)
 
-        // Let the ball fly up a bit out of the chute
-        Body.setVelocity(ballBody, { x: 0, y: -4 })
-
+        // Delay until after the full animation (350 move + 800 zoom + 450 hold)
         setTimeout(() => {
           onDrawComplete(ballBody.label)
-        }, 600)
+        }, 1600)
 
         break
       }
@@ -482,6 +517,7 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
     winnerFoundRef.current = false
     airBlowingRef.current = false
     gateOpenRef.current = false
+    winnerAnimRef.current = null
 
     // Re-add gate if it was removed
     const engine2 = engineRef.current
@@ -564,8 +600,61 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
       // Draw balls
       const balls = ballsRef.current
       const winner = winnerRef.current
+      const anim = winnerAnimRef.current
       for (const ball of balls) {
+        if (anim && ball === anim.ballBody) continue // drawn separately below
         drawBallOnCanvas(ctx, ball, winner)
+      }
+
+      // Keno winner animation
+      if (anim) {
+        const MOVE_MS = 350
+        const ZOOM_MS = 800
+        const elapsed = performance.now() - anim.startTime
+
+        // Dark overlay fades in during the move phase
+        const overlayAlpha = Math.min(0.72, (elapsed / MOVE_MS) * 0.72)
+        ctx.save()
+        ctx.fillStyle = `rgba(5, 10, 30, ${overlayAlpha})`
+        ctx.fillRect(-50, -yOffset - 50, CANVAS_WIDTH + 100, CANVAS_HEIGHT + yOffset + 100)
+        ctx.restore()
+
+        // Interpolate position & scale
+        let px: number, py: number, sc: number
+        if (elapsed < MOVE_MS) {
+          const t = easeInOut(elapsed / MOVE_MS)
+          px = anim.startX + (CX - anim.startX) * t
+          py = anim.startY + (CY - anim.startY) * t
+          sc = 1 + t * 0.15
+        } else {
+          px = CX
+          py = CY
+          const zt = Math.min(1, (elapsed - MOVE_MS) / ZOOM_MS)
+          // easeOutBack: zooms to ~2.6× with a slight overshoot then settles ≈ 2.4×
+          sc = 1.15 + easeOutBack(zt) * 1.25
+        }
+
+        // Radial glow halo behind the ball
+        if (elapsed >= MOVE_MS) {
+          const zt = Math.min(1, (elapsed - MOVE_MS) / ZOOM_MS)
+          const glowR = BALL_RADIUS * sc * 2.2
+          const grd = ctx.createRadialGradient(px, py, BALL_RADIUS * sc * 0.9, px, py, glowR)
+          grd.addColorStop(0, `rgba(245, 200, 66, ${0.45 * Math.min(1, zt * 2.5)})`)
+          grd.addColorStop(1, 'rgba(245, 200, 66, 0)')
+          ctx.save()
+          ctx.beginPath()
+          ctx.arc(px, py, glowR, 0, Math.PI * 2)
+          ctx.fillStyle = grd
+          ctx.fill()
+          ctx.restore()
+        }
+
+        drawBallOnCanvas(ctx, anim.ballBody, winner, {
+          overrideX: px,
+          overrideY: py,
+          scale: sc,
+          lockAngle: true,
+        })
       }
 
       ctx.restore()
@@ -588,6 +677,21 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
     onDrawStart()
     winnerRef.current = null
     winnerFoundRef.current = false
+    winnerAnimRef.current = null
+
+    // Un-freeze any ball that was frozen as a previous winner and drop it
+    // back into the centre of the oval so it rejoins the mix
+    for (const ball of balls) {
+      if (ball.isStatic) {
+        Body.setPosition(ball, {
+          x: CX + (Math.random() - 0.5) * 80,
+          y: CY + (Math.random() - 0.5) * 80,
+        })
+        Body.setVelocity(ball, { x: 0, y: 0 })
+        Body.setAngularVelocity(ball, 0)
+        Body.setStatic(ball, false)
+      }
+    }
 
     // Ensure gate is closed at the start
     if (gateRef.current) {

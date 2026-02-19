@@ -37,7 +37,7 @@ function App() {
   const [drawRequested, setDrawRequested] = useState(false)
 
   const draw = useCallback(() => {
-    if (drawState !== 'idle' || members.length === 0) return
+    if (drawState === 'mixing' || drawState === 'opening' || members.length === 0) return
     setDrawRequested(true)
   }, [drawState, members])
 
@@ -52,12 +52,9 @@ function App() {
     setDrawState('winner')
     setShowConfetti(true)
     setDrawRequested(false)
-
-    // Auto-reset to idle after a delay so user can draw again
-    setTimeout(() => {
-      setDrawState('idle')
-    }, 3000)
   }, [])
+
+  const handleConfettiDone = useCallback(() => setShowConfetti(false), [])
 
   const handleSaveMembers = (updated: string[]) => {
     localStorage.setItem('teamMembers', JSON.stringify(updated))
@@ -86,7 +83,7 @@ function App() {
       <DrawButton
         onClick={draw}
         disabled={isDrawing}
-        label={drawState === 'winner' ? 'Draw Again' : 'Draw'}
+        label="Draw"
       />
 
       <button
@@ -110,7 +107,7 @@ function App() {
 
       <TeamList members={members} winner={winner} />
 
-      {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
+      {showConfetti && <Confetti onDone={handleConfettiDone} />}
       {showEditModal && (
         <EditTeamModal
           members={members}

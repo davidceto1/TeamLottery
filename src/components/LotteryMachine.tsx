@@ -500,7 +500,7 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
         }
 
         // Secret unicorn mode
-        if (ballBody.label === 'jo') {
+        if (ballBody.label.toLowerCase() === 'jo') {
           secretModeRef.current = true
           secretStartRef.current = performance.now()
           rainbowParticlesRef.current = []

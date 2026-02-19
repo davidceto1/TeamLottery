@@ -77,6 +77,23 @@ interface AirParticle {
   size: number
 }
 
+// Secret rainbow particle
+interface RainbowParticle {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  color: string
+  opacity: number
+  size: number
+  gravity: number
+}
+
+const RAINBOW_COLORS = [
+  '#FF0000', '#FF4500', '#FF8C00', '#FFD700', '#FFFF00',
+  '#7FFF00', '#00FF00', '#00CED1', '#1E90FF', '#4B0082', '#8B00FF',
+]
+
 const wallOpts: Matter.IChamferableBodyDefinition = {
   isStatic: true,
   friction: 0.164,
@@ -368,6 +385,9 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
   const airParticlesRef = useRef<AirParticle[]>([])
   const drawTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const winnerAnimRef = useRef<WinnerAnim | null>(null)
+  const secretModeRef = useRef(false)
+  const secretStartRef = useRef(0)
+  const rainbowParticlesRef = useRef<RainbowParticle[]>([])
   const [, forceRender] = useState(0)
 
   const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1
@@ -479,6 +499,15 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
           startTime: performance.now(),
         }
 
+        // Secret unicorn mode
+        if (ballBody.label.toLowerCase() === 'jo') {
+          secretModeRef.current = true
+          secretStartRef.current = performance.now()
+          rainbowParticlesRef.current = []
+        } else {
+          secretModeRef.current = false
+        }
+
         forceRender((n) => n + 1)
 
         // Delay until after the full animation (350 move + 800 zoom + 450 hold)
@@ -518,6 +547,8 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
     airBlowingRef.current = false
     gateOpenRef.current = false
     winnerAnimRef.current = null
+    secretModeRef.current = false
+    rainbowParticlesRef.current = []
 
     // Re-add gate if it was removed
     const engine2 = engineRef.current
@@ -655,6 +686,184 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
           scale: sc,
           lockAngle: true,
         })
+
+        // Secret unicorn rainbow vomit animation
+        if (secretModeRef.current && elapsed > MOVE_MS) {
+          const secretElapsed = performance.now() - secretStartRef.current - MOVE_MS
+          const unicornSlideIn = Math.min(1, secretElapsed / 500)
+
+          // Unicorn position — slides in from the left
+          const unicornX = -60 + easeOutBack(unicornSlideIn) * (CX - 120)
+          const unicornY = CY - 20
+
+          // Spawn rainbow particles from the unicorn's mouth
+          if (unicornSlideIn > 0.3 && secretElapsed < 3000) {
+            for (let i = 0; i < 3; i++) {
+              const angle = -0.4 + Math.random() * 0.8
+              const speed = 4 + Math.random() * 6
+              rainbowParticlesRef.current.push({
+                x: unicornX + 55,
+                y: unicornY + 8 + (Math.random() - 0.5) * 6,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 1.5,
+                color: RAINBOW_COLORS[Math.floor(Math.random() * RAINBOW_COLORS.length)],
+                opacity: 0.9,
+                size: 4 + Math.random() * 6,
+                gravity: 0.12 + Math.random() * 0.08,
+              })
+            }
+          }
+
+          // Update & draw rainbow particles
+          const rp = rainbowParticlesRef.current
+          ctx.save()
+          for (let i = rp.length - 1; i >= 0; i--) {
+            const p = rp[i]
+            p.x += p.vx
+            p.y += p.vy
+            p.vy += p.gravity
+            p.opacity -= 0.008
+            p.size *= 0.997
+
+            if (p.opacity <= 0 || p.x > CANVAS_WIDTH + 50 || p.y > CANVAS_HEIGHT + 50) {
+              rp.splice(i, 1)
+              continue
+            }
+
+            ctx.beginPath()
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+            ctx.fillStyle = p.color + Math.round(p.opacity * 255).toString(16).padStart(2, '0')
+            ctx.fill()
+          }
+          ctx.restore()
+
+          // Draw the unicorn
+          ctx.save()
+          ctx.translate(unicornX, unicornY)
+
+          // Body
+          ctx.fillStyle = '#FFFFFF'
+          ctx.beginPath()
+          ctx.ellipse(0, 0, 40, 28, 0, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.strokeStyle = '#E0D8F0'
+          ctx.lineWidth = 2
+          ctx.stroke()
+
+          // Head
+          ctx.fillStyle = '#FFFFFF'
+          ctx.beginPath()
+          ctx.ellipse(38, -18, 18, 15, 0.3, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.strokeStyle = '#E0D8F0'
+          ctx.stroke()
+
+          // Horn — rainbow gradient
+          ctx.save()
+          ctx.translate(48, -34)
+          ctx.rotate(-0.2)
+          const hornGrad = ctx.createLinearGradient(0, 0, 0, -22)
+          hornGrad.addColorStop(0, '#FFD700')
+          hornGrad.addColorStop(0.5, '#FF69B4')
+          hornGrad.addColorStop(1, '#DA70D6')
+          ctx.fillStyle = hornGrad
+          ctx.beginPath()
+          ctx.moveTo(-5, 0)
+          ctx.lineTo(0, -22)
+          ctx.lineTo(5, 0)
+          ctx.closePath()
+          ctx.fill()
+          // Spiral lines on horn
+          ctx.strokeStyle = 'rgba(255,255,255,0.5)'
+          ctx.lineWidth = 1
+          ctx.beginPath()
+          ctx.moveTo(-3, -4)
+          ctx.lineTo(3, -7)
+          ctx.moveTo(-2, -10)
+          ctx.lineTo(2, -13)
+          ctx.moveTo(-1, -16)
+          ctx.lineTo(1, -19)
+          ctx.stroke()
+          ctx.restore()
+
+          // Eye
+          ctx.fillStyle = '#2a1a4a'
+          ctx.beginPath()
+          ctx.arc(44, -20, 3, 0, Math.PI * 2)
+          ctx.fill()
+          // Eye sparkle
+          ctx.fillStyle = '#FFFFFF'
+          ctx.beginPath()
+          ctx.arc(45, -21, 1.2, 0, Math.PI * 2)
+          ctx.fill()
+
+          // Blush
+          ctx.fillStyle = 'rgba(255, 150, 180, 0.35)'
+          ctx.beginPath()
+          ctx.ellipse(48, -12, 6, 4, 0, 0, Math.PI * 2)
+          ctx.fill()
+
+          // Mouth — open wide, vomiting rainbows!
+          ctx.fillStyle = '#FF69B4'
+          ctx.beginPath()
+          ctx.ellipse(55, -8, 7, 9, 0.2, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.fillStyle = '#CC3366'
+          ctx.beginPath()
+          ctx.ellipse(55, -8, 5, 6, 0.2, 0, Math.PI * 2)
+          ctx.fill()
+
+          // Mane — colorful flowing hair
+          const maneColors = ['#FF69B4', '#DA70D6', '#9370DB', '#7B68EE', '#6495ED']
+          for (let i = 0; i < maneColors.length; i++) {
+            ctx.strokeStyle = maneColors[i]
+            ctx.lineWidth = 4
+            ctx.lineCap = 'round'
+            ctx.beginPath()
+            const waveOffset = Math.sin(performance.now() / 200 + i * 0.8) * 5
+            ctx.moveTo(28 - i * 6, -28)
+            ctx.quadraticCurveTo(22 - i * 8, -36 + waveOffset, 16 - i * 6, -24 + waveOffset)
+            ctx.stroke()
+          }
+
+          // Legs
+          ctx.strokeStyle = '#E0D8F0'
+          ctx.lineWidth = 5
+          ctx.lineCap = 'round'
+          const legWobble = Math.sin(performance.now() / 150) * 2
+          ctx.beginPath()
+          ctx.moveTo(-20, 22)
+          ctx.lineTo(-22, 38 + legWobble)
+          ctx.moveTo(-6, 24)
+          ctx.lineTo(-5, 40 - legWobble)
+          ctx.moveTo(10, 24)
+          ctx.lineTo(11, 40 + legWobble)
+          ctx.moveTo(24, 22)
+          ctx.lineTo(26, 38 - legWobble)
+          ctx.stroke()
+          // Hooves
+          ctx.fillStyle = '#FFD700'
+          for (const hx of [-22, -5, 11, 26]) {
+            ctx.beginPath()
+            ctx.arc(hx, 40, 4, 0, Math.PI * 2)
+            ctx.fill()
+          }
+
+          // Tail — rainbow flowing
+          ctx.lineWidth = 3
+          ctx.lineCap = 'round'
+          const tailColors = ['#FF0000', '#FF8C00', '#FFFF00', '#00FF00', '#1E90FF', '#8B00FF']
+          for (let i = 0; i < tailColors.length; i++) {
+            ctx.strokeStyle = tailColors[i]
+            const wave = Math.sin(performance.now() / 180 + i * 0.6) * 8
+            ctx.beginPath()
+            ctx.moveTo(-38, -4 + i * 3)
+            ctx.quadraticCurveTo(-55, -10 + i * 3 + wave, -62, -2 + i * 4 + wave)
+            ctx.stroke()
+          }
+
+          ctx.restore()
+        }
       }
 
       ctx.restore()
@@ -678,6 +887,8 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
     winnerRef.current = null
     winnerFoundRef.current = false
     winnerAnimRef.current = null
+    secretModeRef.current = false
+    rainbowParticlesRef.current = []
 
     // Un-freeze any ball that was frozen as a previous winner and drop it
     // back into the centre of the oval so it rejoins the mix

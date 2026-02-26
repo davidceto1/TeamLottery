@@ -379,6 +379,7 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
   const sensorRef = useRef<Matter.Body | null>(null)
   const animFrameRef = useRef<number>(0)
   const airBlowingRef = useRef(false)
+  const lowPressureRef = useRef(false)
   const gateOpenRef = useRef(false)
   const winnerRef = useRef<string | null>(null)
   const winnerFoundRef = useRef(false)
@@ -428,11 +429,13 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
     let simTick = 0
 
     // Air force — oval wind jets with oscillation for uniform mixing
+    // Low pressure = gentle idle mixing; full pressure = draw mixing
     Events.on(engine, 'beforeUpdate', () => {
       if (!airBlowingRef.current) return
       simTick++
       const balls = ballsRef.current
       const timeSec = simTick / 60
+      const pressure = lowPressureRef.current ? 0.65 : 1.0
 
       // Wind oscillation: alternates jet dominance → creates swirling flow
       const oscPhase = Math.sin(2 * Math.PI * 1.026 * timeSec)
@@ -451,21 +454,21 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
 
         // Left source pushes right+up, right source pushes left+up
         // Oscillation modulates each jet's strength over time
-        const forceX = 0.026 * strengthL * leftMult - 0.026 * strengthR * rightMult
-        const forceY = -0.038 * strengthL * leftMult + -0.038 * strengthR * rightMult
+        const forceX = (0.026 * strengthL * leftMult - 0.026 * strengthR * rightMult) * pressure
+        const forceY = (-0.038 * strengthL * leftMult + -0.038 * strengthR * rightMult) * pressure
 
-        // High chaos for turbulent mixing
-        const chaosX = (Math.random() - 0.5) * 0.028
-        const chaosY = (Math.random() - 0.5) * 0.024
+        // Turbulent mixing — scaled with pressure
+        const chaosX = (Math.random() - 0.5) * 0.028 * pressure
+        const chaosY = (Math.random() - 0.5) * 0.024 * pressure
 
         Body.applyForce(ball, ball.position, {
           x: forceX + chaosX,
           y: forceY + chaosY,
         })
 
-        // Random spin for visual turbulence
-        if (Math.random() < 0.313) {
-          Body.setAngularVelocity(ball, ball.angularVelocity + (Math.random() - 0.5) * 0.394)
+        // Random spin for visual turbulence — less frequent at low pressure
+        if (Math.random() < 0.313 * pressure) {
+          Body.setAngularVelocity(ball, ball.angularVelocity + (Math.random() - 0.5) * 0.394 * pressure)
         }
       }
     })
@@ -485,7 +488,8 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
         // This ball escaped — it's the winner!
         winnerFoundRef.current = true
         winnerRef.current = ballBody.label
-        airBlowingRef.current = false
+        // Return to gentle idle mixing instead of stopping air completely
+        lowPressureRef.current = true
 
         // Freeze the ball in place and animate it to the centre
         Body.setStatic(ballBody, true)
@@ -544,7 +548,8 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
     ballsRef.current = newBalls
     winnerRef.current = null
     winnerFoundRef.current = false
-    airBlowingRef.current = false
+    airBlowingRef.current = true
+    lowPressureRef.current = true
     gateOpenRef.current = false
     winnerAnimRef.current = null
     secretModeRef.current = false
@@ -589,26 +594,33 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
 
       // Update air particles — originate from bottom area of the oval
       if (airBlowingRef.current) {
+        const isLowPressure = lowPressureRef.current
+        const spawnRate = isLowPressure ? 0.15 : 0.4
+        const speedScale = isLowPressure ? 0.5 : 1.0
+        const opacityBase = isLowPressure ? 0.1 : 0.2
+        const opacityRange = isLowPressure ? 0.12 : 0.25
+        const sizeBase = isLowPressure ? 1.0 : 1.5
+        const sizeRange = isLowPressure ? 1.5 : 2.5
         // Spawn from bottom-left of oval
-        if (Math.random() < 0.4) {
+        if (Math.random() < spawnRate) {
           airParticlesRef.current.push({
             x: CX - 20 - Math.random() * 60,
             y: CY + RY * 0.85 - Math.random() * 40,
-            vy: -(2 + Math.random() * 3),
-            vx: 0.8 + Math.random() * 1.2,
-            opacity: 0.2 + Math.random() * 0.25,
-            size: 1.5 + Math.random() * 2.5,
+            vy: -(2 + Math.random() * 3) * speedScale,
+            vx: (0.8 + Math.random() * 1.2) * speedScale,
+            opacity: opacityBase + Math.random() * opacityRange,
+            size: sizeBase + Math.random() * sizeRange,
           })
         }
         // Spawn from bottom-right of oval
-        if (Math.random() < 0.4) {
+        if (Math.random() < spawnRate) {
           airParticlesRef.current.push({
             x: CX + 20 + Math.random() * 60,
             y: CY + RY * 0.85 - Math.random() * 40,
-            vy: -(2 + Math.random() * 3),
-            vx: -(0.8 + Math.random() * 1.2),
-            opacity: 0.2 + Math.random() * 0.25,
-            size: 1.5 + Math.random() * 2.5,
+            vy: -(2 + Math.random() * 3) * speedScale,
+            vx: -(0.8 + Math.random() * 1.2) * speedScale,
+            opacity: opacityBase + Math.random() * opacityRange,
+            size: sizeBase + Math.random() * sizeRange,
           })
         }
       }
@@ -913,8 +925,9 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
     gateRef.current = newGate
     gateOpenRef.current = false
 
-    // Start air blowing
+    // Start air blowing at full pressure for the draw
     airBlowingRef.current = true
+    lowPressureRef.current = false
     forceRender((n) => n + 1)
 
     // After ~4.4 seconds of mixing, open the gate

@@ -435,7 +435,7 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
       simTick++
       const balls = ballsRef.current
       const timeSec = simTick / 60
-      const pressure = lowPressureRef.current ? 0.72 : 1.0
+      const pressure = lowPressureRef.current ? 0.65 : 1.0
 
       // Wind oscillation: alternates jet dominance → creates swirling flow
       const oscPhase = Math.sin(2 * Math.PI * 1.026 * timeSec)

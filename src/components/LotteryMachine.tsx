@@ -1,7 +1,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
 import Matter from 'matter-js'
 import { EASTER_EGGS, type EasterEggDef, type EasterEggParticle } from './easterEggs'
-import { BRAND_PALETTES, type BallColors } from '../ballColors'
+import { BALL_PALETTES, type BallColors } from '../ballColors'
 
 const { Engine, World, Bodies, Body, Events, Runner } = Matter
 
@@ -46,7 +46,7 @@ const GAP_ANGLE_RIGHT = 2 * Math.PI - Math.acos((CHUTE_RIGHT - CX) / RX)
 const GAP_ANGLE_LEFT = 2 * Math.PI - Math.acos((CHUTE_LEFT - CX) / RX)
 
 function getBallColors(index: number): BallColors {
-  return BRAND_PALETTES[index % BRAND_PALETTES.length]
+  return BALL_PALETTES[index % BALL_PALETTES.length]
 }
 
 // Winner animation state

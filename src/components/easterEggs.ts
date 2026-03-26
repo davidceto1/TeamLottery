@@ -571,10 +571,249 @@ const jhonEnglishman: EasterEggDef = {
   },
 }
 
+// ─── Lindsay — screaming porg ────────────────────────────────────────────────
+
+const lindsayPorg: EasterEggDef = {
+  matches: (name) => name.toLowerCase() === 'lindsay',
+
+  render({ ctx, elapsed, canvasHeight, cx, cy }) {
+    // Bursts up from below with an overshoot bounce
+    const burstIn = Math.min(1, elapsed / 500)
+    const figX = cx
+    const figY = canvasHeight + 80 - easeOutBack(burstIn) * (canvasHeight + 80 - (cy + 35))
+
+    // Constant shake once fully in
+    const shake = burstIn >= 1 ? Math.sin(performance.now() * 0.035) * 4 : 0
+    const shakeY = burstIn >= 1 ? Math.cos(performance.now() * 0.028) * 2 : 0
+
+    // Dramatic starburst lines radiating outward (scream effect)
+    if (burstIn >= 1) {
+      ctx.save()
+      ctx.translate(figX + shake, figY - 30 + shakeY)
+      const numLines = 14
+      for (let i = 0; i < numLines; i++) {
+        const angle = (i / numLines) * Math.PI * 2
+        const pulse = Math.sin(performance.now() * 0.012 + i * 1.1) * 10
+        const inner = 85 + pulse
+        const outer = 130 + pulse * 1.5
+        const alpha = 0.5 + Math.sin(performance.now() * 0.018 + i) * 0.3
+        ctx.strokeStyle = `rgba(255, 200, 40, ${alpha})`
+        ctx.lineWidth = 2 + Math.sin(performance.now() * 0.022 + i) * 1
+        ctx.beginPath()
+        ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner)
+        ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer)
+        ctx.stroke()
+      }
+      ctx.restore()
+    }
+
+    ctx.save()
+    ctx.translate(figX + shake, figY + shakeY)
+
+    // ── Feet / claws ──
+    ctx.strokeStyle = '#E8820C'
+    ctx.lineWidth = 3
+    ctx.lineCap = 'round'
+    // Left foot
+    ctx.beginPath()
+    ctx.moveTo(-15, 60)
+    ctx.lineTo(-22, 72); ctx.moveTo(-15, 60)
+    ctx.lineTo(-12, 74); ctx.moveTo(-15, 60)
+    ctx.lineTo(-6,  72)
+    ctx.stroke()
+    // Right foot
+    ctx.beginPath()
+    ctx.moveTo(15, 60)
+    ctx.lineTo(22, 72); ctx.moveTo(15, 60)
+    ctx.lineTo(12, 74); ctx.moveTo(15, 60)
+    ctx.lineTo(6,  72)
+    ctx.stroke()
+    // Legs
+    ctx.lineWidth = 4
+    ctx.beginPath()
+    ctx.moveTo(-10, 54); ctx.lineTo(-15, 60)
+    ctx.moveTo( 10, 54); ctx.lineTo( 15, 60)
+    ctx.stroke()
+
+    // ── Body (chubby, dark brown) ──
+    ctx.fillStyle = '#6B4F1A'
+    ctx.beginPath()
+    ctx.ellipse(0, 18, 46, 48, 0, 0, Math.PI * 2)
+    ctx.fill()
+
+    // ── Wings (small, tucked to sides) ──
+    ctx.fillStyle = '#5A4010'
+    ctx.beginPath()
+    ctx.ellipse(-48, 12, 18, 11, -0.35, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.ellipse(48, 12, 18, 11, 0.35, 0, Math.PI * 2)
+    ctx.fill()
+    // Wing feather lines
+    ctx.strokeStyle = '#3D2C0A'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(-40, 6);  ctx.quadraticCurveTo(-52,  9, -60, 15)
+    ctx.moveTo(-38, 13); ctx.quadraticCurveTo(-50, 17, -58, 22)
+    ctx.moveTo( 40, 6);  ctx.quadraticCurveTo( 52,  9,  60, 15)
+    ctx.moveTo( 38, 13); ctx.quadraticCurveTo( 50, 17,  58, 22)
+    ctx.stroke()
+
+    // ── White belly ──
+    ctx.fillStyle = '#F0EAD8'
+    ctx.beginPath()
+    ctx.ellipse(0, 28, 28, 34, 0, 0, Math.PI * 2)
+    ctx.fill()
+    // Belly feather texture
+    ctx.strokeStyle = 'rgba(180, 168, 140, 0.5)'
+    ctx.lineWidth = 1
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath()
+      ctx.moveTo(i * 6, 10)
+      ctx.quadraticCurveTo(i * 7, 28, i * 5, 48)
+      ctx.stroke()
+    }
+
+    // ── Head (large, round) ──
+    ctx.fillStyle = '#6B4F1A'
+    ctx.beginPath()
+    ctx.ellipse(0, -38, 44, 42, 0, 0, Math.PI * 2)
+    ctx.fill()
+
+    // ── White face patches around eyes ──
+    ctx.fillStyle = '#F0EAD8'
+    ctx.beginPath()
+    ctx.ellipse(-19, -48, 28, 24, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.ellipse(19, -48, 28, 24, 0, 0, Math.PI * 2)
+    ctx.fill()
+
+    // ── Giant eyes (porg's most iconic feature) ──
+    for (const [ex, ey] of [[-19, -48], [19, -48]] as [number, number][]) {
+      // Sclera
+      ctx.fillStyle = '#FFFFFF'
+      ctx.beginPath()
+      ctx.arc(ex, ey, 22, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#2a1a0a'
+      ctx.lineWidth = 1.5
+      ctx.stroke()
+      // Iris (warm brown)
+      ctx.fillStyle = '#7A4A1E'
+      ctx.beginPath()
+      ctx.arc(ex, ey - 1, 15, 0, Math.PI * 2)
+      ctx.fill()
+      // Pupil (wide with fright)
+      ctx.fillStyle = '#0D0D0D'
+      ctx.beginPath()
+      ctx.arc(ex, ey - 1, 10, 0, Math.PI * 2)
+      ctx.fill()
+      // Main sparkle
+      const sx = ex < 0 ? ex + 7 : ex + 7
+      ctx.fillStyle = '#FFFFFF'
+      ctx.beginPath()
+      ctx.arc(sx, ey - 7, 4.5, 0, Math.PI * 2)
+      ctx.fill()
+      // Small secondary sparkle
+      ctx.beginPath()
+      ctx.arc(ex - 6, ey + 5, 2, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    // ── Eyebrows raised in pure shock ──
+    ctx.strokeStyle = '#3D2C0A'
+    ctx.lineWidth = 3.5
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.moveTo(-38, -72); ctx.quadraticCurveTo(-24, -80, -6, -70)
+    ctx.moveTo( 38, -72); ctx.quadraticCurveTo( 24, -80,  6, -70)
+    ctx.stroke()
+
+    // ── Beak (wide open, screaming) ──
+    const beakOpen = Math.min(1, elapsed / 400)
+    const gape = beakOpen * 20
+    // Upper beak
+    ctx.fillStyle = '#D47010'
+    ctx.beginPath()
+    ctx.moveTo(-11, -24)
+    ctx.quadraticCurveTo(0, -30, 11, -24)
+    ctx.quadraticCurveTo(4, -20 - gape * 0.2, 0, -22)
+    ctx.quadraticCurveTo(-4, -20 - gape * 0.2, -11, -24)
+    ctx.closePath()
+    ctx.fill()
+    // Lower beak (drops down with scream)
+    ctx.fillStyle = '#B85C08'
+    ctx.beginPath()
+    ctx.moveTo(-9, -20)
+    ctx.quadraticCurveTo(0, -18 + gape, 9, -20)
+    ctx.quadraticCurveTo(4, -14 + gape, 0, -12 + gape)
+    ctx.quadraticCurveTo(-4, -14 + gape, -9, -20)
+    ctx.closePath()
+    ctx.fill()
+    // Inside mouth
+    if (gape > 5) {
+      ctx.fillStyle = '#8B2020'
+      ctx.beginPath()
+      ctx.ellipse(0, -20 + gape * 0.5, 7, gape * 0.45, 0, 0, Math.PI * 2)
+      ctx.fill()
+      // Tongue
+      ctx.fillStyle = '#CC4040'
+      ctx.beginPath()
+      ctx.ellipse(0, -15 + gape * 0.5, 4, gape * 0.25, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    // ── Head feather tuft on top ──
+    ctx.fillStyle = '#5A4010'
+    ctx.beginPath()
+    ctx.moveTo(-8, -78); ctx.quadraticCurveTo(-5, -92, 0, -88)
+    ctx.quadraticCurveTo(5, -92, 8, -78)
+    ctx.closePath()
+    ctx.fill()
+    ctx.beginPath()
+    ctx.moveTo(-4, -76); ctx.quadraticCurveTo(-12, -88, -8, -96)
+    ctx.quadraticCurveTo(-4, -88, 0, -78)
+    ctx.closePath()
+    ctx.fill()
+    ctx.beginPath()
+    ctx.moveTo(4, -76); ctx.quadraticCurveTo(12, -88, 8, -96)
+    ctx.quadraticCurveTo(4, -88, 0, -78)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.restore()
+
+    // ── "SCREEEE!" dramatic text ──
+    if (elapsed > 500) {
+      const textAlpha = Math.min(1, (elapsed - 500) / 250)
+      const wobble = Math.sin(performance.now() * 0.04) * 3
+      ctx.save()
+      ctx.globalAlpha = textAlpha
+      ctx.font = 'bold 32px Impact, Arial Black, sans-serif'
+      ctx.textAlign = 'center'
+      // Glow / outline
+      ctx.shadowColor = '#FF4400'
+      ctx.shadowBlur = 12
+      ctx.strokeStyle = '#FF2200'
+      ctx.lineWidth = 5
+      ctx.strokeText('SCREEEE!', cx + wobble, figY - 105 + shakeY)
+      // Fill
+      ctx.shadowColor = '#FFD700'
+      ctx.shadowBlur = 6
+      ctx.fillStyle = '#FFE033'
+      ctx.fillText('SCREEEE!', cx + wobble, figY - 105 + shakeY)
+      ctx.shadowBlur = 0
+      ctx.restore()
+    }
+  },
+}
+
 // ─── Registry ────────────────────────────────────────────────────────────────
 // Add new Easter eggs here — order doesn't matter, first match wins.
 
 export const EASTER_EGGS: EasterEggDef[] = [
   joUnicorn,
   jhonEnglishman,
+  lindsayPorg,
 ]

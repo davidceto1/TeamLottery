@@ -225,10 +225,10 @@ const joUnicorn: EasterEggDef = {
   },
 }
 
-// ─── Jhon — slim English gentleman having tea ────────────────────────────────
+// ─── John — slim English gentleman having tea ────────────────────────────────
 
-const jhonEnglishman: EasterEggDef = {
-  matches: (name) => name.toLowerCase() === 'jhon',
+const johnEnglishman: EasterEggDef = {
+  matches: (name) => name.toLowerCase() === 'john',
 
   render({ ctx, elapsed, particles, canvasWidth, cx, cy }) {
     const slideIn = Math.min(1, elapsed / 600)
@@ -814,6 +814,6 @@ const lindsayPorg: EasterEggDef = {
 
 export const EASTER_EGGS: EasterEggDef[] = [
   joUnicorn,
-  jhonEnglishman,
+  johnEnglishman,
   lindsayPorg,
 ]

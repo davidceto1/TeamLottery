@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
 import Matter from 'matter-js'
 import { EASTER_EGGS, type EasterEggDef, type EasterEggParticle } from './easterEggs'
+import { BRAND_PALETTES, type BallColors } from '../ballColors'
 
 const { Engine, World, Bodies, Body, Events, Runner } = Matter
 
@@ -44,10 +45,9 @@ const OVAL_SEGMENTS = 48
 const GAP_ANGLE_RIGHT = 2 * Math.PI - Math.acos((CHUTE_RIGHT - CX) / RX)
 const GAP_ANGLE_LEFT = 2 * Math.PI - Math.acos((CHUTE_LEFT - CX) / RX)
 
-const BALL_COLORS = [
-  '#1a2d5a', '#2a4fa0', '#3a6bc7', '#1e3a6e', '#264d8e',
-  '#1b3f7a', '#2b5aaa', '#345fa5', '#1c3468', '#2e5590',
-]
+function getBallColors(index: number): BallColors {
+  return BRAND_PALETTES[index % BRAND_PALETTES.length]
+}
 
 // Winner animation state
 interface WinnerAnim {
@@ -191,6 +191,7 @@ function drawBallOnCanvas(
   ctx: CanvasRenderingContext2D,
   body: Matter.Body,
   winnerName: string | null,
+  index: number,
   opts?: { overrideX?: number; overrideY?: number; scale?: number; lockAngle?: boolean },
 ) {
   const drawX = opts?.overrideX ?? body.position.x
@@ -218,10 +219,10 @@ function drawBallOnCanvas(
     grad.addColorStop(0.7, '#e6a817')
     grad.addColorStop(1, '#c48a00')
   } else {
-    const colorIndex = Math.abs(name.charCodeAt(0)) % BALL_COLORS.length
-    const color = BALL_COLORS[colorIndex]
-    grad.addColorStop(0, lightenColor(color, 40))
-    grad.addColorStop(1, color)
+    const { primary, secondary } = getBallColors(index)
+    grad.addColorStop(0, lightenColor(primary, 40))
+    grad.addColorStop(0.65, primary)
+    grad.addColorStop(1, secondary)
   }
 
   ctx.beginPath()
@@ -633,9 +634,10 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
       const balls = ballsRef.current
       const winner = winnerRef.current
       const anim = winnerAnimRef.current
-      for (const ball of balls) {
+      for (let i = 0; i < balls.length; i++) {
+        const ball = balls[i]
         if (anim && ball === anim.ballBody) continue // drawn separately below
-        drawBallOnCanvas(ctx, ball, winner)
+        drawBallOnCanvas(ctx, ball, winner, i)
       }
 
       // Keno winner animation
@@ -681,7 +683,7 @@ function LotteryMachine({ members, onDrawComplete, drawRequested, onDrawStart }:
           ctx.restore()
         }
 
-        drawBallOnCanvas(ctx, anim.ballBody, winner, {
+        drawBallOnCanvas(ctx, anim.ballBody, winner, balls.indexOf(anim.ballBody), {
           overrideX: px,
           overrideY: py,
           scale: sc,

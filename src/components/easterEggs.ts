@@ -232,8 +232,8 @@ const johnEnglishman: EasterEggDef = {
 
   render({ ctx, elapsed, particles, canvasWidth, cx, cy }) {
     const slideIn = Math.min(1, elapsed / 600)
-    // Slides in from the right
-    const figX = canvasWidth + 100 - easeOutBack(slideIn) * (canvasWidth + 100 - (cx + 30))
+    // Slides in from the right, offset so the winner name stays visible
+    const figX = canvasWidth + 100 - easeOutBack(slideIn) * (canvasWidth + 100 - (cx + 140))
     const figY = cy - 20
     const bob = Math.sin(performance.now() / 900) * 2
 
@@ -275,6 +275,17 @@ const johnEnglishman: EasterEggDef = {
     ctx.save()
     ctx.translate(figX, figY + bob)
 
+    // ── Head ──
+    ctx.fillStyle = '#FFDAB9'
+    ctx.beginPath()
+    ctx.ellipse(0, -87, 17, 20, 0, 0, Math.PI * 2)
+    ctx.fill()
+    // Ear
+    ctx.fillStyle = '#F5C5A0'
+    ctx.beginPath()
+    ctx.ellipse(-17, -88, 5, 7, 0.2, 0, Math.PI * 2)
+    ctx.fill()
+
     // ── Top hat ──
     ctx.fillStyle = '#111111'
     // Brim
@@ -290,17 +301,6 @@ const johnEnglishman: EasterEggDef = {
     // Hat band
     ctx.fillStyle = '#8B0000'
     ctx.fillRect(-14, -114, 28, 5)
-
-    // ── Head ──
-    ctx.fillStyle = '#FFDAB9'
-    ctx.beginPath()
-    ctx.ellipse(0, -87, 17, 20, 0, 0, Math.PI * 2)
-    ctx.fill()
-    // Ear
-    ctx.fillStyle = '#F5C5A0'
-    ctx.beginPath()
-    ctx.ellipse(-17, -88, 5, 7, 0.2, 0, Math.PI * 2)
-    ctx.fill()
 
     // ── Monocle ──
     ctx.strokeStyle = '#B8860B'

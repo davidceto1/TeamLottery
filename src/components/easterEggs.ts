@@ -577,9 +577,9 @@ const lindsayPorg: EasterEggDef = {
   matches: (name) => name.toLowerCase() === 'lindsay',
 
   render({ ctx, elapsed, canvasHeight, cx, cy }) {
-    // Bursts up from below with an overshoot bounce
+    // Bursts up from the bottom-right so the winner ball stays visible
     const burstIn = Math.min(1, elapsed / 500)
-    const figX = cx
+    const figX = cx + 140
     const figY = canvasHeight + 80 - easeOutBack(burstIn) * (canvasHeight + 80 - (cy + 35))
 
     // Constant shake once fully in
@@ -797,12 +797,12 @@ const lindsayPorg: EasterEggDef = {
       ctx.shadowBlur = 12
       ctx.strokeStyle = '#FF2200'
       ctx.lineWidth = 5
-      ctx.strokeText('SCREEEE!', cx + wobble, figY - 105 + shakeY)
+      ctx.strokeText('SCREEEE!', figX + wobble, figY - 105 + shakeY)
       // Fill
       ctx.shadowColor = '#FFD700'
       ctx.shadowBlur = 6
       ctx.fillStyle = '#FFE033'
-      ctx.fillText('SCREEEE!', cx + wobble, figY - 105 + shakeY)
+      ctx.fillText('SCREEEE!', figX + wobble, figY - 105 + shakeY)
       ctx.shadowBlur = 0
       ctx.restore()
     }

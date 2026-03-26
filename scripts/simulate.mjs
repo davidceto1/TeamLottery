@@ -112,9 +112,11 @@ export function runSimulation(params = DEFAULT_PARAMS) {
   World.add(engine.world, [sensor]);
 
   // --- Balls ---
+  const ballLabels = p.members ?? Array.from({ length: p.numBalls }, (_, i) => `ball-${i}`);
+  const total = ballLabels.length;
   const balls = [];
-  const cols = Math.min(p.numBalls, 7);
-  for (let i = 0; i < p.numBalls; i++) {
+  const cols = Math.min(total, 7);
+  for (let i = 0; i < total; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
     const y = CY + RY * 0.4 - row * (p.ballRadius * 2 + 6) + (Math.random() - 0.5) * 8;
@@ -128,7 +130,7 @@ export function runSimulation(params = DEFAULT_PARAMS) {
       friction: p.ballFriction,
       frictionAir: p.ballFrictionAir,
       density: p.ballDensity,
-      label: `ball-${i}`,
+      label: ballLabels[i],
     }));
   }
   World.add(engine.world, balls);
@@ -154,12 +156,14 @@ export function runSimulation(params = DEFAULT_PARAMS) {
         const sensorBody = bodyA.label === 'exit-sensor' ? bodyA : bodyB.label === 'exit-sensor' ? bodyB : null;
         if (sensorBody) {
           const ballBody = sensorBody === bodyA ? bodyB : bodyA;
-          if (ballBody.label.startsWith('ball-')) winner = ballBody.label;
+          if (ballBody.label && ballBody.label !== 'gate' && ballBody.label !== 'wall' && ballBody.label !== 'exit-sensor') {
+            winner = ballBody.label;
+          }
           continue;
         }
       }
-      const aIsBall = bodyA.label.startsWith('ball-');
-      const bIsBall = bodyB.label.startsWith('ball-');
+      const aIsBall = bodyA.label?.startsWith('ball-');
+      const bIsBall = bodyB.label?.startsWith('ball-');
       if (aIsBall && bIsBall) ballBallCollisions++;
       else if (aIsBall || bIsBall) ballWallCollisions++;
     }
@@ -167,6 +171,7 @@ export function runSimulation(params = DEFAULT_PARAMS) {
 
   // --- Wind with oscillation ---
   let simStep = 0;
+  let pressure = 0.65; // low pressure until draw button is "clicked"
   const DT = 1000 / 60;
 
   Events.on(engine, 'beforeUpdate', () => {
@@ -195,21 +200,28 @@ export function runSimulation(params = DEFAULT_PARAMS) {
       const chaosY = (Math.random() - 0.5) * p.chaosY;
 
       Body.applyForce(ball, ball.position, {
-        x: forceX + chaosX,
-        y: forceY + chaosY,
+        x: (forceX + chaosX) * pressure,
+        y: (forceY + chaosY) * pressure,
       });
 
-      if (Math.random() < p.angularNudgeChance) {
-        Body.setAngularVelocity(ball, ball.angularVelocity + (Math.random() - 0.5) * p.angularNudgeMag);
+      if (Math.random() < p.angularNudgeChance * pressure) {
+        Body.setAngularVelocity(ball, ball.angularVelocity + (Math.random() - 0.5) * p.angularNudgeMag * pressure);
       }
     }
   });
 
   // --- Run simulation ---
+  const idleSteps = Math.round(p.idleTimeMs / DT);  // low-pressure idle before draw
   const mixSteps = Math.round(p.mixTime / DT);
   const postGateMaxSteps = Math.round(15000 / DT);
 
-  // Phase 1: Mixing (gate closed)
+  // Phase 0: Idle low-pressure mixing (user hasn't clicked DRAW yet)
+  for (let i = 0; i < idleSteps; i++) Engine.update(engine, DT);
+
+  // Draw button clicked — ramp up to full pressure
+  pressure = 1.0;
+
+  // Phase 1: Full-pressure mixing (gate closed)
   for (let i = 0; i < mixSteps && !winner; i++) {
     Engine.update(engine, DT);
   }
@@ -231,7 +243,7 @@ export function runSimulation(params = DEFAULT_PARAMS) {
 
   return {
     winner,
-    winnerIndex: winner ? parseInt(winner.split('-')[1]) : -1,
+    winnerIndex: winner ? (winner.startsWith('ball-') ? parseInt(winner.split('-')[1]) : ballLabels.indexOf(winner)) : -1,
     totalCollisions: ballBallCollisions + ballWallCollisions,
     ballBallCollisions,
     ballWallCollisions,
@@ -240,12 +252,63 @@ export function runSimulation(params = DEFAULT_PARAMS) {
   };
 }
 
+// Exact physics params from LotteryMachine.tsx
+const ACTUAL_PARAMS = {
+  gravityY: 2.97,
+  gravityScale: 0.00147,
+  ballRadius: 32,
+  ballRestitution: 0.782,
+  ballFriction: 0.092,
+  ballFrictionAir: 0.007,
+  ballDensity: 0.003,
+  wallFriction: 0.164,
+  wallRestitution: 0.594,
+  windForceX: 0.026,
+  windForceY: 0.038,
+  windMaxDistScale: 1.29,
+  windSourceAngle: 0.443,
+  windOscFreq: 1.026,
+  windOscAmp: 0.785,
+  chaosX: 0.028,
+  chaosY: 0.024,
+  angularNudgeMag: 0.394,
+  angularNudgeChance: 0.313,
+  mixTime: 4400,
+  idleTimeMs: 0, // overridden per-run in the CLI loop
+};
+
 if (process.argv[1] && process.argv[1].endsWith('simulate.mjs')) {
-  const result = runSimulation();
-  console.log('=== Single Draw (Default Params) ===');
-  console.log(`Winner:               ${result.winner ?? 'NONE (timeout)'}`);
-  console.log(`Selection time:       ${(result.selectionTimeMs / 1000).toFixed(1)}s after gate open`);
-  console.log(`Total collisions:     ${result.totalCollisions}`);
-  console.log(`Ball-ball:            ${result.ballBallCollisions}`);
-  console.log(`Ball-wall:            ${result.ballWallCollisions}`);
+  const members = ["Angela","Chris","David","Deepak","Giselle","Jo","John","Justin","Lindsay","Mischa","Sundara"];
+  const N = 1000;
+  const counts = Object.fromEntries(members.map(m => [m, 0]));
+  let noWinner = 0;
+
+  process.stdout.write(`Running ${N} simulations`);
+  const t0 = Date.now();
+
+  for (let i = 0; i < N; i++) {
+    if (i % 100 === 0) process.stdout.write('.');
+    // Random 1–5s idle before the draw button is clicked
+    const idleTimeMs = 1000 + Math.random() * 4000;
+    const { winner } = runSimulation({ ...ACTUAL_PARAMS, members, idleTimeMs });
+    if (winner && counts[winner] !== undefined) counts[winner]++;
+    else noWinner++;
+  }
+
+  const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+  console.log(` done in ${elapsed}s\n`);
+
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const maxCount = sorted[0][1];
+  const expected = (100 / members.length).toFixed(1);
+
+  console.log(`Winner frequency over ${N} draws`);
+  console.log('='.repeat(48));
+  for (const [name, count] of sorted) {
+    const pct = (count / N * 100).toFixed(1);
+    const bar = '█'.repeat(Math.round((count / maxCount) * 30));
+    console.log(`${name.padEnd(10)} ${String(count).padStart(4)}  (${pct.padStart(5)}%)  ${bar}`);
+  }
+  if (noWinner > 0) console.log(`\n(no winner)  ${noWinner}`);
+  console.log(`\nExpected if fair: ${expected}% each`);
 }
